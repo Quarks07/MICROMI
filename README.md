@@ -1,54 +1,42 @@
 # MICROMI
 
-## FPGA-accelerated adaptive 2.5D LiDAR terrain mapping
+### Adaptive LiDAR terrain mapping on the PolarFire SoC Icicle Kit
 
-MICROMI's proposal for the Microchip PolarFire FPGA Design Contest 2026.
+Robots need to understand the shape of the ground around them. A detailed LiDAR map can capture curbs, slopes and uneven surfaces, but keeping that detail everywhere takes memory and processing time.
 
-**Selected platform:** PolarFire SoC Icicle Kit, Track 2.
+We are proposing an FPGA mapper that uses larger cells for simple terrain and smaller cells where the ground changes. Each cell stores height information, producing a 2.5D map: a top-down view with elevation.
 
-MICROMI will investigate a memory-bounded hardware engine for constructing elevation maps from LiDAR point streams. The FPGA will perform repeated point-to-cell operations and adaptive tile allocation. The RISC-V processor subsystem will manage transfers, configuration, and output. Optional semantic metadata will come from a host perception pipeline.
+This project builds on our SIH 26053 adaptive LiDAR mapping work. We are developing the proposal for the Microchip PolarFire FPGA Design Contest 2026, using the PolarFire SoC Icicle Kit in Track 2. Hardware implementation and measurements are the next stage.
 
-This repository contains proposal documents and architecture drawings. FPGA implementation and hardware measurements are planned work. Performance targets are not measured results.
+## How it works
 
-Use [FORM-FIELDS.md](FORM-FIELDS.md) for the exact text and diagram link to enter in the registration form.
+1. A computer sends recorded LiDAR points to the board over Ethernet.
+2. The RISC-V processor stores the points and starts the FPGA mapper.
+3. The FPGA builds a coarse height map, then selects areas for finer cells within a fixed memory budget.
+4. A second pass through the stored points fills those finer cells. The board returns the map for comparison with a software reference.
 
-## Submission files
+Cells without measurements stay unknown. If fine-cell storage fills up, the system keeps the coarse map and reports the limit.
 
-| File | Use |
-|---|---|
-| [Project overview](submission/project-overview.txt) | Paste into the form's Project Overview field, maximum 300 words |
-| [Innovation and expected impact](submission/innovation-and-impact.txt) | Paste into Innovation & Expected Impact, maximum 250 words |
-| [Project title](submission/project-title.txt) | Use wherever the form requests the project title |
-| [Development platform](submission/development-platform.txt) | Select the matching radio option |
-| [System block diagram, PDF](diagrams/MICROMI-System-Block-Diagram.pdf) | Diagram for reviewers |
-| [Editable draw.io source](diagrams/MICROMI-System-Block-Diagram.drawio) | Open in draw.io or diagrams.net to edit native text, shapes, and connectors |
-| [Scalable diagram](diagrams/MICROMI-System-Block-Diagram.svg) | Vector preview |
-| [PNG preview](diagrams/MICROMI-System-Block-Diagram.drawio.png) | Image preview |
-| [Implementation plan](docs/implementation-plan.md) | Scope, development stages, and evaluation |
-| [AI assistance](AI-ASSISTANCE.md) | Disclosure of assistance used in proposal preparation |
+![MICROMI system block diagram](diagrams/MICROMI-System-Block-Diagram.drawio.png)
 
-![MICROMI proposed system architecture](diagrams/MICROMI-System-Block-Diagram.drawio.png)
+[View PDF](diagrams/MICROMI-System-Block-Diagram.pdf) · [Editable draw.io file](diagrams/MICROMI-System-Block-Diagram.drawio) · [SVG](diagrams/MICROMI-System-Block-Diagram.svg)
 
-## Architecture boundaries
+## What we will build first
 
-- The first demonstrator will replay recorded point clouds and construct a single-frame map within a 32 m square region.
-- Host software will supply optional semantic metadata. The initial FPGA design will not run the neural segmenter or detector.
-- The coarse/fine tile budget will be explicit. Refinement will replay or retain the underlying points; coarse aggregates alone cannot reconstruct fine child cells.
-- Observed, unknown, invalid, and resource-limited states will remain distinct.
-- Kernel timing will be reported separately from input transfer, optional inference, and visualization.
+The first prototype will map one LiDAR frame at a time over a 32 m square area, using 10, 20 and 40 cm cells. Optional semantic labels can come from the host computer. Neural inference stays on the host.
 
-## Official references
+We are targeting one million input points per second. We will compare memory use, terrain detail and complete processing time against software and fixed-resolution maps. The [implementation plan](docs/implementation-plan.md) covers the memory budget, development stages and tests.
 
-- [PolarFire FPGA Design Contest](https://www.microchip.com/en-us/campaigns/polarfire-fpga-design-contest)
+## Project files
+
+- [Registration text and diagram link](FORM-FIELDS.md), ready to copy into the form.
+- [Submission text files](submission/), one file per form field.
+- [Diagram notes](docs/diagram-layout.md), including how to edit the source.
+- [Document checks](docs/validation.md) and [AI assistance disclosure](AI-ASSISTANCE.md).
+
+## References
+
+- [Microchip PolarFire FPGA Design Contest](https://www.microchip.com/en-us/campaigns/polarfire-fpga-design-contest)
 - [Official contest rules](https://ww1.microchip.com/downloads/aemDocuments/documents/FPGA/campaign/PolarFire_FPGA_Design_Contest_2026_Offical_Rules.pdf)
 - [PolarFire SoC Icicle Kit](https://www.microchip.com/en-us/development-tool/mpfs-icicle-kit)
-- [Microchip FPGA tool licensing](https://www.microchip.com/en-us/products/fpgas-and-plds/fpga-and-soc-design-tools/fpga/licensing)
-- [Related research: stream-based FPGA LiDAR ground segmentation](https://arxiv.org/abs/2408.10410)
-
-The related paper establishes existing FPGA LiDAR work. MICROMI's proposed allocation policy and architecture will need their own implementation and comparative evaluation.
-
-## Preparing the submission
-
-Use the plain-text files for the two prose fields. For System Block Diagram, share the public `diagrams` folder from the final proposal commit so reviewers can open the PDF and editable source together. Keep submitted files fixed after the organizer's deadline unless the organizer permits a change.
-
-The package does not contain existing private project source code, trained weights, or datasets. No contest form was submitted by publishing these materials.
+- [Related FPGA LiDAR processing research](https://arxiv.org/abs/2408.10410)

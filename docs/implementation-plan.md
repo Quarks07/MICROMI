@@ -1,86 +1,63 @@
-# MICROMI implementation plan
+# Implementation plan
 
-Team MICROMI proposes a Track 2 prototype on the PolarFire SoC Icicle Kit. It will extend our SIH 26053 adaptive semantic 2.5D LiDAR work. The complete system and FPGA implementation have not yet been built. All sizes below are design calculations; throughput and fidelity objectives require measurement.
+We will start with a single-frame terrain mapper on the PolarFire SoC Icicle Kit. The aim is to test whether adaptive cells can retain useful terrain detail within a fixed memory budget. The FPGA implementation and measurements are planned work.
 
-## Scope and processing contract
+## First prototype
 
-The first implementation will map one recorded frame of at most 100,000 points into a 32 m square region. Supported cell widths will be 40, 20, and 10 cm. A 5 cm mode will follow only if the core pipeline meets its checks. Each cell will describe elevation statistics and observation status, rather than a complete 3D scene.
+Each recorded frame will contain up to 100,000 points. The mapper will cover a 32 m square area with 40 cm cells, refining selected tiles to 20 or 10 cm. Cells store height statistics and observation status. Multi-frame mapping, SLAM and vehicle control are outside this prototype. A 5 cm mode is a later extension.
 
-The host will quantize coordinates to signed integer millimetres and reject non-finite source coordinates before encoding. The FPGA will independently validate record framing, coordinate bounds, and configuration. The initial vertical interval will be -32 m inclusive to +32 m exclusive. Horizontal bounds will also be half-open, with an explicit origin and no wrapping of negative coordinates. Frames will carry an identifier and declared point count.
+The host will encode coordinates as signed integer millimetres and reject non-finite values before transmission. The FPGA will check record format, coordinate bounds and configuration. Horizontal bounds will include the lower edge and exclude the upper edge, with a configured origin. Heights will range from -32 m inclusive to +32 m exclusive. Each frame will carry an ID and point count.
 
-Full CNN inference and visualization will remain on the host. Semantic metadata will be optional and disabled in the baseline. Multi-frame SLAM, motion compensation, map aging, and safety control are outside scope.
+## Processing flow
 
-## Modules and dataflow
-
-| Module | Planned responsibility |
+| Component | Responsibility |
 |---|---|
-| Host replay and reference | Encode recorded points, optionally attach host semantic metadata, send frames over Gigabit Ethernet, and compare returned maps with software. |
-| RISC-V software | Receive and validate frame envelopes, own shared-DDR buffers, program bounds and budgets, start transfers, and export completed maps and status. |
-| AXI/transfer bridge | Read point buffers, carry accelerator commands, and write results into shared DDR with defined completion and buffer ownership. Validate the exact attachment and transfer mechanism during board bring-up. |
-| Point frontend | Validate records, crop the region, calculate cell addresses, and count accepted and rejected points by reason. |
-| Cell accumulator | Update minimum, maximum, signed sum, count, and observed/overflow flags. Serialize or forward repeated updates to the same address correctly. |
-| Coarse analysis and tile manager | Score geometric variation, optionally include host semantic priorities, assign bounded fine slots, and record unmet refinement requests. |
-| Output and instrumentation | Export leaf records, coarse fallback, resolution descriptors, and counters; propagate backpressure without silently dropping accepted points. |
+| Host computer | Replay recorded frames over Gigabit Ethernet, run the software reference and display comparisons. Optional semantic labels come from the host. |
+| RISC-V processor | Receive frames, manage shared DDR buffers, configure the FPGA and return completed maps. |
+| AXI transfer interface | Move points and cell data between shared DDR and the FPGA. Confirm the board connection and buffer ownership during bring-up. |
+| FPGA mapper | Validate points, calculate cell addresses, accumulate heights, select fine tiles and record status. |
 
-The planned sequence will be receive, coarse pass, tile selection, fine pass, then export. Pass one will fill the 40 cm grid and gather tile scores. The manager will rank requests deterministically, with tile index breaking ties, and choose either 20 or 10 cm for each selected tile. Pass two will replay the same immutable DDR frame and accumulate only its selected fine tiles. Export will identify the active resolution so the host does not count overlapping coarse and fine records twice.
+The first pass builds the 40 cm grid. The tile manager ranks areas by geometric variation and assigns a limited number of fine slots. Tile index breaks equal-score ties so results are repeatable. Optional semantic priorities will be evaluated separately.
 
-Refinement cannot reconstruct child cells by splitting a parent's minimum, maximum, sum, or count. Fine cells will start unobserved and receive original points during replay. Exhausting the slot pool will retain coarse coverage and set a budget-limit flag. A failed or incomplete pass will mark the frame incomplete. Reusing the retained DDR frame avoids a second network upload.
+The second pass reads the same original points from DDR and fills the selected fine cells. Coarse-cell statistics cannot reconstruct the distribution of points within smaller cells. The output therefore identifies which resolution is active in each tile, so overlapping cells are not counted twice.
 
-## Memory budget and numerical formats
+When fine slots run out, the coarse map remains available and a flag records the limit. Empty cells remain unknown. Incomplete passes mark the frame incomplete. Repeated updates to one cell and stalled transfers must preserve every accepted point.
 
-Each proposed input record will occupy 16 bytes: three signed 32-bit coordinates and a 32-bit metadata field. A zero metadata field will support geometry-only processing. Each cell record will occupy 24 bytes: a signed 64-bit elevation sum, signed 32-bit minimum and maximum, a 32-bit count, and 32-bit flags. The declared frame and height limits fit these accumulators; range and overflow checks will still be tested.
+## Memory budget
 
-A 1.6 m square tile will contain 4 by 4 coarse cells, 8 by 8 cells at 20 cm, or 16 by 16 cells at 10 cm. The region will contain 20 by 20 tiles. The first allocator will reserve a full 10 cm slot even for a 20 cm tile, keeping its worst-case footprint simple and fixed.
+Each point uses 16 bytes: three signed 32-bit coordinates and a 32-bit metadata field. Each cell uses 24 bytes: a signed 64-bit height sum, signed 32-bit minimum and maximum, a 32-bit count and 32-bit flags.
 
-| Map allocation | Calculation | Bytes |
+A 1.6 m square tile holds 4 by 4 cells at 40 cm, 8 by 8 at 20 cm, or 16 by 16 at 10 cm. The map contains 400 tiles. Each fine slot reserves enough space for 10 cm cells, including when used at 20 cm.
+
+| Allocation | Calculation | Bytes |
 |---|---|---:|
-| Full 40 cm base grid | 80 Ã— 80 Ã— 24 | 153,600 |
-| Pool of 128 fine slots | 128 Ã— 16 Ã— 16 Ã— 24 | 786,432 |
-| Tile descriptors | 400 Ã— 32 | 12,800 |
-| Bounded analysis/output scratch | Reserved | 65,536 |
-| Total map allocation | Sum of the above | 1,018,368 |
-| Remaining within a 1 MiB cap | 1,048,576 minus total | 30,208 |
+| Coarse grid | 80 x 80 x 24 | 153,600 |
+| 128 fine slots | 128 x 16 x 16 x 24 | 786,432 |
+| Tile descriptors | 400 x 32 | 12,800 |
+| Analysis and output scratch | Reserved | 65,536 |
+| Total map storage | | 1,018,368 |
 
-These allocations will primarily use shared DDR. On-chip FIFOs and update caches will need a separate budget after synthesis. With all slots at 10 cm, up to 128 of 400 tiles, or 32% of the region, can receive that resolution. This is an allocation limit, not a prediction of retained terrain detail.
+This leaves 30,208 bytes within a 1 MiB map budget. At most 128 of the 400 tiles can use fine slots. For comparison, uniform cell records use 614,400 bytes at 20 cm or 2,457,600 bytes at 10 cm, excluding metadata. These are storage calculations; the tests must establish how much terrain detail each map retains.
 
-For comparison, dense cell records alone occupy 153,600 bytes at 40 cm, 614,400 at 20 cm, 2,457,600 at 10 cm, and 9,830,400 at 5 cm. These calculations exclude uniform-grid metadata. Evaluation will report the same categories for both implementations and will not claim a measured saving from this arithmetic alone.
+Two input buffers require another 3,200,000 bytes. Map storage and input buffers therefore total 4,218,368 bytes before software, network buffers and any extra output copy. Most storage will use shared DDR. On-chip FIFOs and caches need a separate synthesis budget. A 5 cm tile would require 24,576 bytes and a revised allocation.
 
-Two 100,000-point input buffers will require another 3,200,000 bytes. Combined with the proposed map allocation, this is 4,218,368 bytes before software, network buffers, and any separate output copy. The 1 MiB cap applies to map storage, not total board memory. The output will reuse a completed map buffer where practical; any extra buffer will be counted explicitly. A 5 cm tile would need 32 Ã— 32 Ã— 24 = 24,576 bytes, so that extension will require fewer slots or a revised budget.
+## Development stages
 
-At the target of one million unique input points per second, encoded ingress payload is 16 MB/s before protocol overhead. Two full passes imply up to two million point visits per second and 32 MB/s of point-buffer reads. Cell read/modify/write traffic, clearing, analysis, and export are additional costs. The transfer bridge and memory arbitration will therefore be measured with concentrated as well as dispersed points.
-
-## Staged schedule
-
-| Period after development begins | Deliverable and exit check |
+| Weeks | Work and completion check |
 |---|---|
-| Weeks 1 and 2 | Confirm kit programming, Libero SoC and embedded tool access, bridge attachment, and DDR buffer ownership. Freeze formats and build the fixed-point reference. |
-| Weeks 3 to 5 | Simulate and bring up a uniform 40 cm accumulator. Match the reference for boundaries, repeated addresses, resets, and stalls. |
-| Weeks 6 to 8 | Add coarse scores, bounded allocation, and two-pass refinement. Verify all supported resolutions and exhausted-pool fallback. |
-| Weeks 9 to 11 | Integrate Gigabit Ethernet, RISC-V transfers, completion handling, and status export. Exercise malformed and incomplete frames and slow consumers. |
-| Weeks 12 to 14 | Compare recorded frames, characterize memory traffic, close timing, and record resource use and latency distributions. |
-| Weeks 15 and 16 | Fix demonstrated failures, freeze reproducible builds, and prepare the demonstration and report. Consider optional semantics or 5 cm tiles only after core checks pass. |
+| 1-2 | Bring up the kit, tools and DDR transfers. Agree on data formats and build the software reference. |
+| 3-5 | Implement the coarse mapper. Match the reference for boundaries, repeated cell updates, resets and stalls. |
+| 6-8 | Add tile selection and point replay. Verify fine cells and fallback when storage fills. |
+| 9-11 | Integrate Ethernet, processor control and map export. Test malformed and incomplete frames. |
+| 12-14 | Compare recorded data, measure memory traffic and processing time, and check synthesis timing and resource use. |
+| 15-16 | Resolve failures and prepare a repeatable demonstration. Add optional features only after the core tests pass. |
 
-The uniform accumulator will remain a working intermediate result. Initial serialized cell updates may establish correctness before pipelining. Any later concurrency will need collision handling and randomized stall verification.
+## Evaluation
 
-## Verification and reporting
+The target is 100,000 input points per frame at 10 frames per second. Two passes require up to two million point visits per second. At 16 bytes per point, this means 16 MB/s of input payload and 32 MB/s of point-buffer reads, plus cell updates and other traffic.
 
-The performance goal will be 100,000 input points per frame at 10 frames per second, equivalent to one million unique input points per second. It is a target, not an achieved result. Complete processing time will include both passes, allocation, clearing, and export. Network transfer, optional host inference, and visualization will also be timed separately, with overlap disclosed.
+We will check exact agreement with a fixed-point software reference for cell statistics, flags and tile selection. Tests will cover empty frames, negative coordinates, boundary points, invalid records, concentrated points, resets, stalled output and exhausted fine slots. Accepted and rejected counts must reconcile for every completed frame.
 
-- Compare integer minimum, maximum, sum, count, observation flags, and tile choices exactly with a fixed-point software reference. Declare any tolerance used when comparing with floating-point source data.
-- Test negative coordinates, region edges, empty frames, invalid lengths, out-of-range values, all points in one cell, output stalls, reset during a frame, and an exhausted tile pool. Accepted and rejected counts must reconcile with the declared point count for completed frames.
-- Enforce the map cap, record peak allocated bytes, and expose input/output stalls, update conflicts, rejection reasons, overflow, frame completeness, and unmet refinement requests. Empty cells must remain unknown.
-- Compare geometry-only adaptive output with uniform 10, 20, and 40 cm maps on identical observations. Measure elevation error and retention of annotated raised edges and depressions with actual returns. Report allocation failures alongside fidelity. Optional semantic priorities will be a separate comparison.
-- Record throughput, p50/p95/worst observed frame latency, clock frequency, timing slack, logic and RAM use, and test conditions. Report power only if suitable measurements are available with a comparable baseline.
+We will compare adaptive maps with uniform 10, 20 and 40 cm grids on identical data. Measurements will cover elevation error, retention of annotated edges and depressions with observed returns, peak memory and unmet refinement requests.
 
-Public results will separate simulation, synthesis, board measurements, and untested behavior. Prior FPGA LiDAR acceleration and adaptive mapping will be acknowledged. No ASIC implementation, field readiness, or guaranteed speedup is claimed. This proposal package will contain newly written material only, with no private project code or datasets.
-
-## Submission field checks
-
-The plain-text fields were checked using whitespace-separated word counts.
-
-| Field | Words | Maximum | Result |
-|---|---:|---:|---|
-| Project overview | 249 | 300 | Within limit |
-| Innovation and expected impact | 189 | 250 | Within limit |
-
-The platform text is exactly `PolarFire SoC Icicle Kit`. The title is exactly `FPGA-Accelerated Adaptive 2.5D LiDAR Terrain Mapping`.
+Timing will include both passes, clearing, allocation and export. Network transfer, optional host inference and visualization will be reported separately. We will also record latency distributions, clock frequency, timing slack and FPGA resource use. Simulation and board results will be identified separately; power comparisons require actual measurements.
