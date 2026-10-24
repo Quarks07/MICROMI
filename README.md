@@ -33,3 +33,5 @@ The [PolarFire SoC Icicle Kit](https://www.microchip.com/en-us/development-tool/
 We will start with single-frame maps covering a 32 m square area, using 10, 20 and 40 cm cells. The target is one million input points per second. Evaluation will compare terrain detail, memory use and complete processing time against software and fixed-resolution maps.
 
 The architecture is defined; FPGA implementation and hardware measurements are the next stage. Speed and power benefits remain to be measured.
+
+Licensed under the [MIT License](LICENSE).
