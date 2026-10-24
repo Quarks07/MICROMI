@@ -1,1 +1,0 @@
-FPGA-Accelerated Adaptive 2.5D LiDAR Terrain Mapping

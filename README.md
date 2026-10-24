@@ -1,42 +1,35 @@
 # MICROMI
 
-### Adaptive LiDAR terrain mapping on the PolarFire SoC Icicle Kit
+Adaptive LiDAR terrain mapping using the PolarFire SoC Icicle Kit.
 
-Robots need to understand the shape of the ground around them. A detailed LiDAR map can capture curbs, slopes and uneven surfaces, but keeping that detail everywhere takes memory and processing time.
+MICROMI explores how an FPGA can turn LiDAR points into a compact terrain map for mobile robots and off-road vehicles. It builds on our earlier work in adaptive 2.5D mapping, where each cell in a top-down grid stores height information.
 
-We are proposing an FPGA mapper that uses larger cells for simple terrain and smaller cells where the ground changes. Each cell stores height information, producing a 2.5D map: a top-down view with elevation.
+## The idea
 
-This project builds on our SIH 26053 adaptive LiDAR mapping work. We are developing the proposal for the Microchip PolarFire FPGA Design Contest 2026, using the PolarFire SoC Icicle Kit in Track 2. Hardware implementation and measurements are the next stage.
+A flat stretch of ground needs less map detail than a curb, slope or uneven surface. Using small cells everywhere wastes memory. Using large cells everywhere can hide useful terrain features.
+
+Our mapper will adjust cell size to the terrain. It will keep a coarse map of the full area and allocate finer cells where height changes need more detail, within a fixed memory budget. Areas without LiDAR measurements will remain unknown.
 
 ## How it works
 
-1. A computer sends recorded LiDAR points to the board over Ethernet.
-2. The RISC-V processor stores the points and starts the FPGA mapper.
-3. The FPGA builds a coarse height map, then selects areas for finer cells within a fixed memory budget.
-4. A second pass through the stored points fills those finer cells. The board returns the map for comparison with a software reference.
+A host computer sends recorded LiDAR points to the board over Ethernet. The RISC-V processor stores the frame and controls the FPGA mapper.
 
-Cells without measurements stay unknown. If fine-cell storage fills up, the system keeps the coarse map and reports the limit.
+The FPGA first groups points into coarse cells and calculates height statistics. It then selects areas for refinement and reads the original points again to fill the finer cells. The completed map returns to the host for display and comparison with a software reference.
 
-![MICROMI system block diagram](diagrams/MICROMI-System-Block-Diagram.drawio.png)
+![MICROMI system architecture](diagrams/MICROMI-System-Block-Diagram.drawio.png)
 
-[View PDF](diagrams/MICROMI-System-Block-Diagram.pdf) · [Editable draw.io file](diagrams/MICROMI-System-Block-Diagram.drawio) · [SVG](diagrams/MICROMI-System-Block-Diagram.svg)
+[Open PDF](diagrams/MICROMI-System-Block-Diagram.pdf) | [Editable draw.io source](diagrams/MICROMI-System-Block-Diagram.drawio) | [SVG](diagrams/MICROMI-System-Block-Diagram.svg)
 
-## What we will build first
+## Why FPGA?
 
-The first prototype will map one LiDAR frame at a time over a 32 m square area, using 10, 20 and 40 cm cells. Optional semantic labels can come from the host computer. Neural inference stays on the host.
+LiDAR mapping repeats the same operations for many points: checking coordinates, finding cell addresses and updating height statistics. A hardware pipeline can overlap these stages, processing different points at different stages at the same time.
 
-We are targeting one million input points per second. We will compare memory use, terrain detail and complete processing time against software and fixed-resolution maps. The [implementation plan](docs/implementation-plan.md) covers the memory budget, development stages and tests.
+Moving this work into the FPGA leaves the RISC-V processor to handle communication and control. Custom integer arithmetic also lets us choose data widths for the map's coordinate range and memory budget. Shared-memory traffic and repeated updates to the same cell will still affect throughput.
 
-## Project files
+The [PolarFire SoC Icicle Kit](https://www.microchip.com/en-us/development-tool/mpfs-icicle-kit) combines RISC-V processors, FPGA fabric, LPDDR4 memory and Gigabit Ethernet on one board. This makes it suitable for testing the complete data path.
 
-- [Registration text and diagram link](FORM-FIELDS.md), ready to copy into the form.
-- [Submission text files](submission/), one file per form field.
-- [Diagram notes](docs/diagram-layout.md), including how to edit the source.
-- [Document checks](docs/validation.md) and [AI assistance disclosure](AI-ASSISTANCE.md).
+## First prototype
 
-## References
+We will start with single-frame maps covering a 32 m square area, using 10, 20 and 40 cm cells. The target is one million input points per second. Evaluation will compare terrain detail, memory use and complete processing time against software and fixed-resolution maps.
 
-- [Microchip PolarFire FPGA Design Contest](https://www.microchip.com/en-us/campaigns/polarfire-fpga-design-contest)
-- [Official contest rules](https://ww1.microchip.com/downloads/aemDocuments/documents/FPGA/campaign/PolarFire_FPGA_Design_Contest_2026_Offical_Rules.pdf)
-- [PolarFire SoC Icicle Kit](https://www.microchip.com/en-us/development-tool/mpfs-icicle-kit)
-- [Related FPGA LiDAR processing research](https://arxiv.org/abs/2408.10410)
+The architecture is defined; FPGA implementation and hardware measurements are the next stage. Speed and power benefits remain to be measured.

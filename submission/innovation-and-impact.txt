@@ -1,5 +1,0 @@
-MICROMI focuses on where to spend limited map memory. Simple terrain will use larger cells, while areas with greater height variation will receive finer cells within a fixed memory budget.
-
-The proposed FPGA design combines this allocation with parallel point processing. Fine cells will use the original LiDAR points, and areas without measurements will stay unknown. If fine-cell storage runs out, the system will retain the coarse map and report the limit.
-
-The expected outcome is a working prototype that helps us understand the trade-off between terrain detail, memory and speed. We will compare it with fixed-resolution maps on the same data and measure the complete processing time, including both passes and data transfers. These results will show whether the design is useful for robots with limited computing resources.

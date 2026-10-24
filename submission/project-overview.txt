@@ -1,7 +1,0 @@
-LiDAR helps robots understand the ground around them, but detailed maps can use a lot of memory and processing time. Flat ground needs less detail than a curb, slope or uneven patch of terrain.
-
-MICROMI proposes an FPGA-based mapper that adjusts map detail to the terrain. It builds on our SIH 26053 adaptive LiDAR mapping work and uses the PolarFire SoC Icicle Kit. The output is a 2.5D map: a top-down grid that also stores ground height.
-
-The FPGA will group LiDAR points into cells, calculate height statistics and assign smaller cells to areas with more variation. A second pass through the original points will fill these finer cells. The onboard RISC-V processor will manage data transfers and map output. Areas with no observations will remain marked as unknown.
-
-We will start with recorded LiDAR data and compare the maps with a software reference and fixed-resolution grids. Our target is one million input points per second. Tests will measure processing time, memory use and how well the map preserves terrain detail. The prototype is intended for embedded mapping research in mobile robots and off-road vehicles.
