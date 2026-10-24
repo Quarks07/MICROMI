@@ -1,0 +1,9 @@
+Mobile robots need terrain maps that preserve elevation changes without spending the same memory on every patch of ground. Uniform fine grids can consume storage on simple terrain, while software mapping competes with other perception tasks.
+
+Team MICROMI proposes an FPGA-accelerated adaptive 2.5D LiDAR terrain mapper on the PolarFire SoC Icicle Kit. The project builds on our SIH 26053 work in adaptive semantic mapping.
+
+The host will replay recorded LiDAR frames over Gigabit Ethernet. RISC-V software will buffer points in shared DDR, configure the accelerator, and control transfers through an AXI data interface. Optional semantic metadata will come from the host; full neural inference will remain there.
+
+The FPGA will validate points, crop a 32 m square region, compute cell addresses, and accumulate minimum and maximum elevation, sum, count, and observation flags. Coarse-grid analysis will guide a memory-bounded tile manager using 10, 20, and 40 cm cells. A second pass over the original points will populate selected fine tiles correctly. Hardware counters will expose stalls, rejected points, and exhausted refinement capacity. Unknown cells will remain distinguishable from observed terrain.
+
+RISC-V software will export the bounded map and status through shared DDR to a host comparison view. Evaluation will compare numerical agreement, terrain-detail retention, memory, throughput, and frame latency against software and uniform-grid baselines. The performance target is one million input points per second, with both passes and transfer costs reported. Initial scope is single-frame mapping; 5 cm refinement is an extension. Multi-frame SLAM and safety control are outside scope.

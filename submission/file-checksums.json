@@ -1,0 +1,22 @@
+{
+  ".gitattributes": "820622aa96986c200178f5d93ded754fa5ff7b35b4c0eb1765d3017213232bbd",
+  ".gitignore": "e7201274127bcb856ca14db8e27e634b7b9f047e605793098ccf7078ea429dfc",
+  "AI-ASSISTANCE.md": "17c721d82f9d02ad309e56c1b616e985ee7e1b081ac1be1790ed92d5625c366c",
+  "diagrams/MICROMI-System-Block-Diagram.drawio": "749965975283d3f340bf1608b94bff13c9e448b5c1309187185e6ccf136819ac",
+  "diagrams/MICROMI-System-Block-Diagram.drawio.png": "4fc61997cf9b338c75c3d333e191ccf533f42c70f3572f29e65915ec5eeaf530",
+  "diagrams/MICROMI-System-Block-Diagram.pdf": "8517e7f3406606f0af40c0c2e051bdb6dd6080245ccc59213322de72b88a3211",
+  "diagrams/MICROMI-System-Block-Diagram.svg": "9b27f9595822b7d58b4ecc0e212862c162885e6c129934b9b6012810a90ea5b3",
+  "docs/diagram-layout.md": "978a317e7e1ca2340c87b9c0875b29a306757da84165b31ec26c0b98ae6d120d",
+  "docs/implementation-plan.md": "40ba9b371ad7d79a210c34696c41ca2e0fdc6388342e6f23cba4ca764b1fa8fa",
+  "docs/validation.md": "332b697874f2092fa3b3490888727a94b5358eee9f527ff58a93a8fcd745f5dd",
+  "FORM-FIELDS.md": "500c9f0268d15e10336942e67f4ac615a3d6f575b070039f47cc3f211822b48b",
+  "README.md": "cd1a7935ca51d37fb817d7840c9b38965aefd0f8ceec14e9c1b8d6f65156cedb",
+  "submission/asset-integrity.json": "4bc70f30e00e22690ca6f928a8c24d7a5b8b168ae4cf856b54f215e9d2802122",
+  "submission/development-platform.txt": "2dd1bd755c1a9caa0831f35a4c8084303ac2f78e4c34efcd0dc737d3d55ca304",
+  "submission/innovation-and-impact.txt": "b582f6756093c96a094221abb87b1bafcfb4d10a72e9360e538802eb8526aab1",
+  "submission/project-overview.txt": "fc7b0e47813a4342f0ccc8597297637976f7c0fccce908df9022feb15c8ba23a",
+  "submission/project-title.txt": "3923d9eb73120632774f3d020958f5363e272d14090c5a0d8596bc74b0d9c56e",
+  "submission/system-block-diagram-link.txt": "82e6c78083c18f7374add30a4fa1de451fe8f4484b177b8075afb670bae9a985",
+  "submission/validation-results.json": "5481e65081aba89b366a97e5f634a6174fa6dd42d1d66e1e99e2134773a32a10",
+  "submission/word-counts.json": "d2b1c123c876ed4126e2594fde79386418fcaf1db8501c1cc8ee28d798f3f0ca"
+}
